@@ -1,6 +1,7 @@
 # AlarmHandlex
 
-**TODO: Add description**
+Bridge between erlang’s [`:alarm_handler`](http://erlang.org/doc/man/alarm_handler.html) and Elixir’s 
+[`Registry`](https://hexdocs.pm/elixir/Registry.html)
 
 ## Installation
 
