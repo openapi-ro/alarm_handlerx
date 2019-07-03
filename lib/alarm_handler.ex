@@ -39,28 +39,41 @@ defmodule AlarmHandler do
   @impl true
   def handle_event({:set_alarm, {alarm_id, alarm_desc}}, state) do
     Logger.info("#{__MODULE__}(#{inspect self()}) Set #{inspect(alarm_id)}")
-    alarms = Map.put(state.alarms, alarm_id, alarm_desc)
-    Registry.dispatch(@registry, :set_alarm ,fn list->
-      Enum.each(list, fn
-        {pid, {module, func_atom}} ->
-          apply(module, func_atom,[alarm_id, alarm_desc])
-        {pid,func} when is_function(func) -> func.(alarm_id, alarm_desc)
+    alarms =
+      try do
+        Registry.dispatch(@registry, :set_alarm ,fn list->
+          Enum.each(list, fn
+            {pid, {module, func_atom}} ->
+              apply(module, func_atom,[alarm_id, alarm_desc])
+            {pid,func} when is_function(func) -> func.(alarm_id, alarm_desc)
+            end)
         end)
-    end)
+        Map.put(state.alarms, alarm_id, alarm_desc)
+      rescue
+        error ->
+          Logger.error("failed setting alarm: #{inspect alarm_id}, #{inspect alarm_desc}, error:#{inspect error}")
+          state.alarms
+      end
     {:ok, %{state| alarms: alarms}}
   end
   @impl true
   def handle_event({:clear_alarm, alarm_id}, state) do
     Logger.info("#{__MODULE__}(#{inspect self()})Cleared #{inspect(alarm_id)}")
     alarms=
-      Map.delete(state.alarms, alarm_id)
-    Registry.dispatch(@registry, :clear_alarm ,fn list ->
-      Enum.each(list, fn
-        {pid, {module, func_atom}} ->
-          apply(module, func_atom,[alarm_id])
-        {pid, func} when is_function(func) -> func.(alarm_id)
+      try do
+        Registry.dispatch(@registry, :clear_alarm ,fn list ->
+          Enum.each(list, fn
+            {pid, {module, func_atom}} ->
+              apply(module, func_atom,[alarm_id])
+            {pid, func} when is_function(func) -> func.(alarm_id)
+            end)
         end)
-    end)
+        Map.delete(state.alarms, alarm_id)
+      rescue
+        error ->
+          Logger.error("failed to clear alarm: #{inspect alarm_id}, error:#{inspect error}")
+          state.alarms
+      end
     {:ok, %{state| alarms: alarms}}
   end
 
